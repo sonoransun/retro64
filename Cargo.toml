@@ -1,0 +1,8 @@
+[workspace]
+members = ["crates/retro64-core", "crates/retro64-app", "crates/retro64-web"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"

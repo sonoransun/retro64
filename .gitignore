@@ -1,0 +1,27 @@
+# Build artifacts
+/target/
+
+# wasm-pack output
+crates/retro64-web/pkg/
+
+# Copyrighted Commodore ROMs (keep built-in replacements in source)
+roms/*.bin
+roms/*.rom
+roms/basic
+roms/kernal
+roms/chargen
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment / secrets
+.env
+.env.*
