@@ -74,6 +74,23 @@ flowchart LR
     G -->|Yes| H["Return<br/>framebuffer"]
 ```
 
+## Module Tree
+
+```mermaid
+graph LR
+    CORE[retro64-core] --> CFG[config]
+    CORE --> SYS[system]
+    CORE --> CPU[cpu<br/>mod · addressing · bcd · registers · tests]
+    CORE --> MEM[memory<br/>mod · pla · rom]
+    CORE --> VIC[vic<br/>mod · sprites · palette · export]
+    CORE --> SID[sid<br/>mod · voice · envelope · filter]
+    CORE --> CIA[cia<br/>mod · cia · keyboard · joystick]
+    CORE --> STO[storage<br/>prg · d64 · t64]
+    CORE --> EXT[extensions<br/>compute · hostfs]
+    APP[retro64-app] --> CORE
+    WEB[retro64-web] --> CORE
+```
+
 ## Workspace Structure
 
 ```mermaid
@@ -174,21 +191,21 @@ requestAnimationFrame(frame);
 | Component | Status | Details |
 |-----------|--------|---------|
 | MOS 6510 CPU | Complete | All official opcodes + undocumented (LAX, SAX, DCP, ISC, SLO, RLA, SRE, RRA, ANC, ALR, ARR, SBX). BCD decimal mode. |
-| VIC-II Video | Complete | Standard text, multicolor text, standard bitmap, multicolor bitmap, extended BG color. 8 sprites. Raster IRQ. Badline cycle stealing. |
-| SID Audio | Complete | 3 voices, 4 waveforms (triangle/sawtooth/pulse/noise), ADSR envelopes, programmable filter. |
+| VIC-II Video | Line-accurate | Standard text, multicolor text, standard bitmap, multicolor bitmap, extended BG color. 8 sprites with collisions. Raster IRQ. Badline cycle stealing is approximated, not cycle-exact. |
+| SID Audio | Functional | 3 voices, 4 waveforms, ADSR envelopes, biquad filter. 6581-curve emulation and combined-waveform nuances omitted. |
 | CIA I/O | Complete | 8x8 keyboard matrix, 2 joystick ports, dual 16-bit timers, TOD clock. |
-| Memory | Complete | 64KB RAM, full bank switching (8 configs), built-in open-source ROMs. |
-| Storage: PRG | Complete | 2-byte header + raw program data. |
-| Storage: D64 | Complete | 35-track floppy images, directory, BAM, sector chains. |
+| Memory | Complete | 64KB RAM, PLA bank switching, real ROMs via `--rom-dir`. |
+| Storage: PRG | Complete | 2-byte header + raw program data. Autostarts `RUN` on BASIC load. |
+| Storage: D64 | Complete | 35-track floppy images: directory / BAM / sector-chain reader. |
 | Storage: T64 | Complete | Tape archive container. |
-| Storage: TAP | Parsed | Pulse timing data parsed; real-time tape loading not yet implemented. |
-| Storage: CRT | Complete | Standard 8K/16K cartridges. |
-| Host Filesystem | Complete | Virtual IEC device #10 for LOAD/SAVE to host OS. |
+| Storage: TAP | Not implemented | Returns `StorageError::Unsupported`. |
+| Storage: CRT | Not implemented | Returns `StorageError::Unsupported`. |
+| Host Filesystem | Complete | Virtual IEC device #10 for LOAD/SAVE to host OS (desktop). |
 | Compute Offload | Complete | 32-bit math (mul/div/mod/sqrt/sin/cos), memory fill/copy at $DE00. |
 | PAL Model | Complete | 985,248 Hz, 312 lines, 63 cycles/line, 50.12 FPS. |
 | NTSC Model | Complete | 1,022,730 Hz, 263 lines, 65 cycles/line, 59.83 FPS. |
-| Desktop (SDL2) | Complete | Video, audio, keyboard, joystick. macOS/Linux/Windows. |
-| Web (WASM) | Complete | Canvas rendering, Web Audio, keyboard. 83KB WASM binary. |
+| Desktop (SDL2) | Complete | Video, audio, keyboard. macOS/Linux/Windows. |
+| Web (WASM) | Complete | Canvas rendering, Web Audio (ScriptProcessorNode), keyboard, drag-drop. |
 
 ## Use Cases
 

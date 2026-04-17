@@ -166,16 +166,19 @@ impl C64 {
 }
 ```
 
-### Cycle-Exact Timing
+### Timing Fidelity
 
-The VIC-II has highest bus priority and can "steal" cycles from the CPU:
+The current implementation is **line-accurate** rather than cycle-accurate:
+each raster line gives the CPU its full budget (63 cycles PAL / 65 NTSC),
+then the VIC renders the line and the SID / CIAs advance. The real chip's
+bus arbitration is approximated — the cycle-stealing behaviours below are
+*not* emulated (demos and tight copy protection that rely on them will not
+run correctly):
 
 | Event              | Cycles Stolen | Condition                           |
 |--------------------|---------------|-------------------------------------|
 | Badline detection  | 40-43         | When DEN=1 and YSCROLL matches      |
-| Sprite 0 fetch     | 2             | When sprite 0 is enabled and in range |
-| Sprite 1 fetch     | 2             | When sprite 1 is enabled and in range |
-| ...                | ...           | (up to 8 sprites)                   |
+| Sprite N fetch     | 2             | Per enabled sprite in range         |
 | Sprite pointer     | 1 per sprite  | p-access for each active sprite     |
 
 ---
@@ -240,9 +243,11 @@ retro64-app (bin)          retro64-web (cdylib)
   +-----------------------------+
 ```
 
-- **retro64-core**: Pure Rust, `no_std` compatible. Exposes `Machine` struct
-  with `run_frame(&mut self, framebuf: &mut [u8], audio_buf: &mut [f32])`.
-  No platform dependencies. All timing constants are configurable for PAL/NTSC.
+- **retro64-core**: Pure Rust, platform-independent (uses `std` for optional
+  file I/O but no OS APIs). Exposes a [`C64`] struct with
+  `run_frame() -> &[u32]` returning an ARGB8888 framebuffer and
+  `drain_audio() -> Vec<i16>` returning mono 48 kHz samples. Timing constants
+  switch between PAL and NTSC via [`Model`].
 
 - **retro64-app**: Uses `sdl2` crate for window creation, input events,
   audio playback, and texture rendering. Targets Linux, macOS, Windows.
@@ -288,28 +293,22 @@ retro64-app (bin)          retro64-web (cdylib)
 
 | Aspect             | Mechanism                                              |
 |--------------------|--------------------------------------------------------|
-| Frame pacing       | `std::thread::sleep` or `requestAnimationFrame` (web)  |
-| Audio transfer     | Lock-free SPSC ring buffer (`AtomicUsize` read/write)  |
+| Frame pacing       | `std::thread::sleep` (desktop) / `requestAnimationFrame` (web) |
+| Audio transfer     | `Arc<Mutex<VecDeque<i16>>>` ring, SDL audio callback consumer |
 | Input delivery     | Written from main thread before `run_frame()`          |
-| No mutexes needed  | Emulation core is single-threaded; only the audio ring buffer crosses threads |
-
-The audio ring buffer is sized to hold 2-3 frames worth of samples
-(~3300 samples at 48 kHz / 60 Hz) to absorb scheduling jitter without
-introducing audible latency.
 
 ### Web (WASM) Differences
 
-In the browser build, there is no dedicated audio thread controlled by us.
-Instead, the Web Audio API drives an `AudioWorkletProcessor` that pulls
-samples from a `SharedArrayBuffer`-backed ring buffer. The emulation loop
-runs inside `requestAnimationFrame`, which the browser calls at display
-refresh rate (~60 Hz).
+In the browser build the emulation loop runs inside `requestAnimationFrame`.
+Audio is delivered via a `ScriptProcessorNode` whose `onaudioprocess`
+callback calls `emu.drain_audio()` each block (AudioWorklet + SharedArrayBuffer
+is noted as future work in `docs/web.md`).
 
 ```
-Browser Main Thread             AudioWorklet Thread
+Browser Main Thread             ScriptProcessorNode (audio thread)
   |                               |
-  | requestAnimationFrame         | process() callback
-  | -> run_frame()                | -> read from SharedArrayBuffer
-  | -> write to SharedArrayBuffer | -> output 128-sample blocks
+  | requestAnimationFrame         | onaudioprocess()
+  | -> emu.run_frame()            | -> emu.drain_audio()
+  | -> draw framebuffer           | -> fill output buffer
   |                               |
 ```

@@ -5,6 +5,15 @@ each with its own oscillator, waveform generator, envelope generator, and
 ring modulation capability. A programmable multi-mode filter and master
 volume control shape the final output.
 
+> **Implementation notes.** The current emulator models the 24-bit phase
+> accumulator, four waveforms, ADSR envelopes, and one programmable filter
+> as a biquad (LP/BP/HP) configured from the cutoff/resonance registers.
+> Samples are generated at CPU rate and decimated to the output rate
+> (48 kHz default) with a fractional accumulator. The 6581 non-linear filter
+> curve, combined-waveform nuances and sample-playback hack (writing $D418
+> bit 3 at audio rate) are **not** emulated; tune-in-time music will play
+> in the correct key but with a slightly simplified timbre.
+
 ---
 
 ## Register Map ($D400 - $D41C)

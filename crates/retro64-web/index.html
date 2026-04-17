@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Retro 64 — Web Emulator</title>
+  <style>
+    body { margin: 0; background: #111; color: #eee; font-family: -apple-system, sans-serif; }
+    #wrap { display: flex; flex-direction: column; align-items: center; padding: 1em; }
+    canvas { image-rendering: pixelated; border: 1px solid #444; width: 806px; height: 568px; }
+    #drop { margin-top: .5em; color: #aaa; font-size: 14px; }
+    #start-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: #eee; cursor: pointer;
+    }
+    #start-overlay.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="screen" width="403" height="284"></canvas>
+    <p id="drop">Drag a <code>.prg</code>, <code>.d64</code>, or <code>.t64</code> onto the screen. F12 = RESTORE.</p>
+  </div>
+  <div id="start-overlay">Click to start (needed for audio)</div>
+
+  <script type="module">
+    import init, { WebEmulator } from './pkg/retro64_web.js';
+
+    const wasm = await init();
+    const emu = new WebEmulator("pal");
+    const w = emu.screen_width();
+    const h = emu.screen_height();
+
+    const canvas = document.getElementById('screen');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    function frame() {
+      emu.run_frame();
+      const ptr = emu.framebuffer_ptr();
+      const len = emu.framebuffer_len();
+      const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, len);
+      const img = new ImageData(pixels, w, h);
+      ctx.putImageData(img, 0, 0);
+      requestAnimationFrame(frame);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'F12') { emu.trigger_nmi(); e.preventDefault(); return; }
+      emu.key_down(e.code);
+      if (['Space','ArrowDown','ArrowRight','Tab'].includes(e.code)) e.preventDefault();
+    });
+    document.addEventListener('keyup', e => emu.key_up(e.code));
+
+    canvas.addEventListener('dragover', e => e.preventDefault());
+    canvas.addEventListener('drop', async e => {
+      e.preventDefault();
+      const f = e.dataTransfer?.files?.[0];
+      if (!f) return;
+      const data = new Uint8Array(await f.arrayBuffer());
+      try { emu.load_media(data, f.name); }
+      catch (err) { alert('load failed: ' + err); }
+    });
+
+    // Audio: ScriptProcessorNode pulls samples each callback.
+    let audioCtx = null;
+    let audioNode = null;
+    function startAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const bufSize = 2048;
+      audioNode = audioCtx.createScriptProcessor(bufSize, 0, 1);
+      let pending = new Int16Array(0);
+      audioNode.onaudioprocess = (ev) => {
+        const out = ev.outputBuffer.getChannelData(0);
+        if (pending.length < out.length) {
+          const more = emu.drain_audio();
+          const combined = new Int16Array(pending.length + more.length);
+          combined.set(pending); combined.set(more, pending.length);
+          pending = combined;
+        }
+        const n = Math.min(out.length, pending.length);
+        for (let i = 0; i < n; i++) out[i] = pending[i] / 32768;
+        for (let i = n; i < out.length; i++) out[i] = 0;
+        pending = pending.slice(n);
+      };
+      audioNode.connect(audioCtx.destination);
+    }
+
+    const overlay = document.getElementById('start-overlay');
+    overlay.addEventListener('click', () => {
+      startAudio();
+      overlay.classList.add('hidden');
+    });
+
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

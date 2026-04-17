@@ -126,9 +126,9 @@ overlay regions: `$A000-$BFFF`, `$D000-$DFFF`, and `$E000-$FFFF`.
 |  0  | LORAM    | 1 = BASIC ROM at $A000, 0 = RAM                   |
 |  1  | HIRAM    | 1 = KERNAL ROM at $E000, 0 = RAM                  |
 |  2  | CHAREN   | 1 = I/O at $D000, 0 = Char ROM (when I/O mapped)  |
-|  3  | Cassette | Datasette output signal                            |
-|  4  | Cassette | Datasette button sense (read)                      |
-|  5  | Cassette | Datasette motor control (1=off)                    |
+|  3  | CAS-OUT | Datasette output signal (write)                    |
+|  4  | CAS-SENSE | Datasette button sense (read-only)               |
+|  5  | CAS-MOTOR | Datasette motor control (1 = motor off)          |
 
 ### All 8 Bank Configurations (bits 0-2)
 

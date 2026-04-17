@@ -3,6 +3,16 @@
 Retro64 supports the most common Commodore 64 file and disk image formats. This
 document describes the layout of each format.
 
+## Support Status
+
+| Format | Status | Notes |
+|--------|--------|-------|
+| PRG    | Implemented | Parsed and injected into RAM; autostarts BASIC programs. |
+| D64    | Implemented | Directory / BAM / sector chain; wired to KERNAL LOAD via traps. |
+| T64    | Implemented | Entry extraction via `T64::extract(idx)`. |
+| TAP    | Not implemented | `C64::load_media` returns `StorageError::Unsupported`. |
+| CRT    | Not implemented | `C64::load_media` returns `StorageError::Unsupported`. |
+
 ## PRG Format
 
 The simplest and most common Commodore 64 program format.
